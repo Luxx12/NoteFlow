@@ -4,6 +4,8 @@
 #include <QVector>
 #include <QStringList>
 #include "Message.h"
+#include <QProcess>
+#include <QCoreApplication>
 
 class WsClient;
 class ChatView;
