@@ -2,6 +2,8 @@ import express from "express";
 import dotenv from "dotenv";
 import { MongoClient } from "mongodb";
 import cors from "cors";
+import { WebSocketServer } from "ws";
+import { createServer } from "http";
 
 dotenv.config();
 
@@ -19,14 +21,11 @@ if (!uri) {
 
 let db;
 
-
 async function connectDB() {
   try {
     const client = new MongoClient(uri);
-
     await client.connect();
-    db = client.db(); // database name comes from URI
-
+    db = client.db();
     console.log("MongoDB connected");
   } catch (err) {
     console.error(err);
@@ -34,22 +33,16 @@ async function connectDB() {
   }
 }
 
+// ── Existing REST routes ──────────────────────────────────
 app.get("/", (req, res) => {
   res.json({ status: "NoteFlow API running" });
 });
 
-
 app.post("/notes", async (req, res) => {
   try {
     const note = req.body;
-
     const result = await db.collection("notes").insertOne(note);
-
-    res.json({
-      success: true,
-      id: result.insertedId
-    });
-
+    res.json({ success: true, id: result.insertedId });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -58,15 +51,104 @@ app.post("/notes", async (req, res) => {
 app.get("/notes", async (req, res) => {
   try {
     const notes = await db.collection("notes").find().toArray();
-
     res.json(notes);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+// ── WebSocket chat server ─────────────────────────────────
+// channels: Map<channelName, Set<ws>>
+const channels = new Map();
+
+function getChannel(name) {
+  if (!channels.has(name)) channels.set(name, new Set());
+  return channels.get(name);
+}
+
+function broadcast(channelName, payload, exclude = null) {
+  const members = channels.get(channelName);
+  if (!members) return;
+  const data = JSON.stringify(payload);
+  for (const client of members) {
+    if (client !== exclude && client.readyState === 1) {
+      client.send(data);
+    }
+  }
+}
+
+// Attach WS server to the same HTTP server as Express
+const server = createServer(app);
+const wss = new WebSocketServer({ server });
+
+wss.on("connection", (ws) => {
+  ws.currentChannel = null;
+  ws.displayName    = "anonymous";
+
+  ws.on("message", (raw) => {
+    let msg;
+    try {
+      msg = JSON.parse(raw);
+    } catch {
+      return;
+    }
+
+    if (msg.type === "join") {
+      // Leave previous channel if any
+      if (ws.currentChannel) {
+        const prev = channels.get(ws.currentChannel);
+        if (prev) {
+          prev.delete(ws);
+          broadcast(ws.currentChannel, {
+            type: "presence",
+            channel: ws.currentChannel,
+            count: prev.size,
+          });
+        }
+      }
+
+      ws.currentChannel = msg.channel;
+      ws.displayName    = msg.sender || "anonymous";
+      getChannel(msg.channel).add(ws);
+
+      broadcast(msg.channel, {
+        type: "presence",
+        channel: msg.channel,
+        count: channels.get(msg.channel).size,
+      });
+
+    } else if (msg.type === "message") {
+      if (!msg.channel || !msg.text) return;
+
+      // Broadcast to everyone else in the channel
+      broadcast(msg.channel, {
+        type:    "message",
+        channel: msg.channel,
+        sender:  msg.sender,
+        text:    msg.text,
+        ts:      msg.ts || new Date().toTimeString().slice(0, 5),
+      }, ws); // exclude sender so they don't get their own message back
+    }
+  });
+
+  ws.on("close", () => {
+    if (ws.currentChannel) {
+      const ch = channels.get(ws.currentChannel);
+      if (ch) {
+        ch.delete(ws);
+        broadcast(ws.currentChannel, {
+          type:    "presence",
+          channel: ws.currentChannel,
+          count:   ch.size,
+        });
+      }
+    }
+  });
+});
+
+// ── Start ─────────────────────────────────────────────────
 connectDB().then(() => {
-  app.listen(PORT, () => {
+  server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
 });
