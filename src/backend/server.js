@@ -33,7 +33,7 @@ async function connectDB() {
   }
 }
 
-// ── Existing REST routes ──────────────────────────────────
+
 app.get("/", (req, res) => {
   res.json({ status: "NoteFlow API running" });
 });
@@ -57,8 +57,7 @@ app.get("/notes", async (req, res) => {
   }
 });
 
-// ── WebSocket chat server ─────────────────────────────────
-// channels: Map<channelName, Set<ws>>
+
 const channels = new Map();
 
 function getChannel(name) {
@@ -69,7 +68,9 @@ function getChannel(name) {
 function broadcast(channelName, payload, exclude = null) {
   const members = channels.get(channelName);
   if (!members) return;
+
   const data = JSON.stringify(payload);
+
   for (const client of members) {
     if (client !== exclude && client.readyState === 1) {
       client.send(data);
@@ -77,9 +78,10 @@ function broadcast(channelName, payload, exclude = null) {
   }
 }
 
-// Attach WS server to the same HTTP server as Express
+
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
+
 
 const keepAlive = setInterval(() => {
   wss.clients.forEach((ws) => {
@@ -87,6 +89,7 @@ const keepAlive = setInterval(() => {
       ws.terminate();
       return;
     }
+
     ws.isAlive = false;
     ws.ping();
   });
@@ -96,14 +99,16 @@ wss.on("close", () => clearInterval(keepAlive));
 
 wss.on("connection", (ws) => {
   ws.isAlive = true;
-  ws.on("pong", () => { ws.isAlive = true; });
-
-wss.on("connection", (ws) => {
   ws.currentChannel = null;
-  ws.displayName    = "anonymous";
+  ws.displayName = "anonymous";
+
+  ws.on("pong", () => {
+    ws.isAlive = true;
+  });
 
   ws.on("message", (raw) => {
     let msg;
+
     try {
       msg = JSON.parse(raw);
     } catch {
@@ -111,11 +116,12 @@ wss.on("connection", (ws) => {
     }
 
     if (msg.type === "join") {
-      // Leave previous channel if any
+      // leave previous channel
       if (ws.currentChannel) {
         const prev = channels.get(ws.currentChannel);
         if (prev) {
           prev.delete(ws);
+
           broadcast(ws.currentChannel, {
             type: "presence",
             channel: ws.currentChannel,
@@ -125,7 +131,8 @@ wss.on("connection", (ws) => {
       }
 
       ws.currentChannel = msg.channel;
-      ws.displayName    = msg.sender || "anonymous";
+      ws.displayName = msg.sender || "anonymous";
+
       getChannel(msg.channel).add(ws);
 
       broadcast(msg.channel, {
@@ -133,37 +140,43 @@ wss.on("connection", (ws) => {
         channel: msg.channel,
         count: channels.get(msg.channel).size,
       });
+    }
 
-    } else if (msg.type === "message") {
+    else if (msg.type === "message") {
       if (!msg.channel || !msg.text) return;
 
-      // Broadcast to everyone else in the channel
-      broadcast(msg.channel, {
-        type:    "message",
-        channel: msg.channel,
-        sender:  msg.sender,
-        text:    msg.text,
-        ts:      msg.ts || new Date().toTimeString().slice(0, 5),
-      }, ws); // exclude sender so they don't get their own message back
+      broadcast(
+        msg.channel,
+        {
+          type: "message",
+          channel: msg.channel,
+          sender: msg.sender,
+          text: msg.text,
+          ts: msg.ts || new Date().toTimeString().slice(0, 5),
+        },
+        ws
+      );
     }
   });
 
   ws.on("close", () => {
     if (ws.currentChannel) {
       const ch = channels.get(ws.currentChannel);
+
       if (ch) {
         ch.delete(ws);
+
         broadcast(ws.currentChannel, {
-          type:    "presence",
+          type: "presence",
           channel: ws.currentChannel,
-          count:   ch.size,
+          count: ch.size,
         });
       }
     }
   });
 });
 
-// ── Start ─────────────────────────────────────────────────
+
 connectDB().then(() => {
   server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
