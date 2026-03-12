@@ -58,7 +58,7 @@ app.post("/files", async (req,res) => {
   }
 });
 
-app.get("/files", async (req,res) => {
+app.get("/files/:channel", async (req,res) => {
   try {
     const files = await db.collection("files").find({ channel: req.params.channel }).toArray();
     res.json(files);
