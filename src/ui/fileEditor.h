@@ -43,6 +43,7 @@ private:
     QLabel *fileLabel;
     QFrame *divider;
     QsciScintilla *editor;
+    QFont font;
 };
 
 #endif // FILEVIEWER_H

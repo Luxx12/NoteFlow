@@ -52,7 +52,7 @@ void MainWindow::buildUI()
 
     // ── Sidebar ──────────────────────────────
     auto *sidebar = new QWidget(central);
-    sidebar->setFixedWidth(220);
+    sidebar->setFixedWidth(220); // this makes it really jittery
     sidebar->setStyleSheet(
         "QWidget#sidebar { background: #0D0D0D; border-right: 1px solid #1A1A1A; }");
     sidebar->setObjectName("sidebar");
@@ -61,7 +61,7 @@ void MainWindow::buildUI()
     sl->setContentsMargins(0, 0, 0, 0);
     sl->setSpacing(0);
 
-    // ── Section header with + button ──
+    // ── Channel Section header with + button ──
     auto *sectionHeader = new QWidget(sidebar);
     sectionHeader->setFixedHeight(56);
     sectionHeader->setObjectName("sectionHeader");
@@ -72,7 +72,7 @@ void MainWindow::buildUI()
 
     auto *sectionLabel = new QLabel("CHANNELS", sectionHeader);
     sectionLabel->setStyleSheet(
-        "color: #333333; font-size: 10px; font-weight: 600; "
+        "color: #E0E0E0; font-size: 10px; font-weight: 600; "
         "letter-spacing: 0.12em; background: transparent;");
 
     auto *addBtn = new QPushButton("+", sectionHeader);
@@ -89,7 +89,6 @@ void MainWindow::buildUI()
     shl->addWidget(sectionLabel);
     shl->addStretch();
     shl->addWidget(addBtn);
-
     sl->addWidget(sectionHeader);
 
 
@@ -176,17 +175,18 @@ void MainWindow::buildUI()
     fl->addWidget(userNameLabel);
     fl->addStretch();
     sl->addWidget(footer);
-
+    // Editor and splitter
+    QSplitter *splitter = new QSplitter(Qt::Horizontal);
     fileEditor *editor = new fileEditor(this);
 
     // ── Chat View ────────────────────────────
     m_chatView = new ChatView(central);
     connect(m_chatView, &ChatView::messageSent, this, &MainWindow::onSendMessage);
 
-    root->addWidget(sidebar);
-    root->addWidget(editor);
-    root->addWidget(m_chatView);
-
+    root->addWidget(splitter);
+    splitter->addWidget(sidebar);
+    splitter->addWidget(editor);
+    splitter->addWidget(m_chatView);
     // ── Connections ──────────────────────────
     connect(addBtn, &QPushButton::clicked, this, [this]() {
         showChannelInput(!m_channelInputWidget->isVisible());

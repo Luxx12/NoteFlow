@@ -19,30 +19,46 @@
 #include <Qsci/qsciscintilla.h>
 
 fileEditor::fileEditor(QWidget *parent) : QWidget{parent}{
+    QFont font;
+    font.setFamilies({"Consolas", "Menlo"});
+    font.setStyleHint(QFont::Monospace);
+
     root = new QVBoxLayout(this);
+    root->setContentsMargins(0, 0, 0, 0);
     // Top bar with filename
-    topBar = new QWidget();
+    QFrame *topBar = new QFrame();
+    topBar->setFixedHeight(56);
+    topBar->setStyleSheet(
+        "QFrame { background: #111111; border-bottom: 1px solid #1E1E1E; }");
 
     topLayout = new QHBoxLayout(topBar);
-    topLayout->setContentsMargins(16, 0, 16, 0);
+    topLayout->setContentsMargins(20, 0, 20, 0);
     topLayout->setSpacing(10);
+    topLayout->setAlignment(Qt::AlignHCenter);
 
-    divider = new QFrame(topBar);
-    divider->setFixedSize(1,20);
-
-    fileLabel = new QLabel("No file :(", topBar);
+    fileLabel = new QLabel("no file", topBar);
+    fileLabel->setStyleSheet(
+        "color: #E0E0E0; font-size: 14px; font-weight: 500; letter-spacing: 0.04em;");
 
     // QScintilla Editor
     editor = new QsciScintilla(this);
-    editor->setMarginType(0, QsciScintilla::NumberMargin);
+    editor->setFont(font); // font
+    editor->setMarginsFont(font);
+
+    editor->setMarginType(0, QsciScintilla::NumberMargin); // number margin
     editor->setMarginLineNumbers(0, true);
-    QFont font = QFontDatabase::systemFont(QFontDatabase::FixedFont);
-    // find a better font this is just a placeholder its so bad
-    editor->setFont(font);
+    editor->setMarginsForegroundColor(QColor(0xEE, 0xEE, 0xEE));
+    editor->setMarginsBackgroundColor(QColor(0x11, 0x11, 0x11));
+    editor->setMarginWidth(0, "00000");
+    editor->setMarginType(1, QsciScintilla::SymbolMargin); // spacer margin
+    editor->setMarginWidth(1, 18);
+
+    editor->setCaretLineVisible(true); // cursor settings
+    editor->setCaretWidth(2);
+    editor->setCaretForegroundColor(QColor(0x11, 0x11, 0x11));
+    editor->setCaretLineBackgroundColor(QColor(0x22, 0x22, 0x22));
     editor->setBraceMatching(QsciScintilla::SloppyBraceMatch);
-    editor->setMarginBackgroundColor(0, "111111");
-    editor->setMarginWidth(0, "000");
-    //HARDCODED!! ADD LINE NUMBER COUNTER WHEN FILES ARE ADDED
+
 
     root->addWidget(topBar);
     topLayout->addWidget(fileLabel);
