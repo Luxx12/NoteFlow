@@ -338,7 +338,9 @@ wss.on("connection", async (ws) => {
 
     // ── FILE UPLOAD (new file shared to channel) ─────────────────────────
     else if (msg.type === "file_upload") {
-      if (!msg.channel || !msg.filename || !msg.content) return;
+      if (!msg.channel || !msg.filename || msg.content == null) return;
+
+      console.log(`file_upload: ${msg.filename} → channel "${msg.channel}" (${msg.content.length} chars base64)`);
 
       try {
         await db.collection("files").updateOne(
