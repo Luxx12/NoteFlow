@@ -23,7 +23,6 @@
 #include <QStandardPaths>
 #include <QDebug>
 #include <Qsci/qsciscintilla.h>
-#include <QFileDialog>
 
 
 MainWindow::MainWindow(const QString &serverUrl, const QString &displayName, QWidget *parent)
@@ -239,8 +238,11 @@ void MainWindow::addChannelToList(const QString &name)
     m_channelTree->setItemWidget(channelItem, 0, itemWidget);
 
     connect(itemWidget, &ChannelItemWidget::addFile, this, [this, channelItem, name]() {
+        qDebug() << "[Upload] '+' clicked for channel:" << name;
         QString filePath = QFileDialog::getOpenFileName(this, "Upload file to " + name);
         if (!filePath.isEmpty()) {
+            qDebug() << "[Upload] File selected:" << filePath;
+
             auto *fileItem = new QTreeWidgetItem(channelItem);
             fileItem->setData(0, Qt::UserRole, "FILE:" + filePath);
             auto *fileWidget = new fileItemWidget(m_channelTree, filePath);
@@ -249,17 +251,23 @@ void MainWindow::addChannelToList(const QString &name)
 
             connect(fileWidget, &fileItemWidget::fileSelected,
                     this, [this](const QString &path) {
-                        m_editor->loadFile(path);
-                        m_currentFile = QFileInfo(path).fileName();
-                    });
+                m_editor->loadFile(path);
+                m_currentFile = QFileInfo(path).fileName();
+            });
 
             // Broadcast the file to everyone in the channel
             QFile file(filePath);
             if (file.open(QIODevice::ReadOnly)) {
                 QByteArray content = file.readAll();
                 file.close();
+                qDebug() << "[Upload] Read" << content.size() << "bytes, sending to channel:" << name;
                 m_ws->sendFileUpload(name, QFileInfo(filePath).fileName(), content);
+                qDebug() << "[Upload] sendFileUpload called";
+            } else {
+                qDebug() << "[Upload] FAILED to open file:" << filePath;
             }
+        } else {
+            qDebug() << "[Upload] File dialog cancelled";
         }
     });
 }
@@ -287,7 +295,7 @@ void MainWindow::onChannelCreated(const QString &channel)
 }
 
 void MainWindow::onMessageHistoryReceived(const QString &channel,
-                                          const QVector<Message> &messages)
+                                           const QVector<Message> &messages)
 {
     // Replace local message store with server history
     m_messages[channel] = messages;
@@ -427,15 +435,15 @@ void MainWindow::onWsError(const QString &reason)
 // ── File sync ────────────────────────────────────────────────────────────────
 
 void MainWindow::onLocalFileChanged(const QString &filename, int position, int length,
-                                    const QString &text, bool isAddition)
+                                     const QString &text, bool isAddition)
 {
     if (m_activeChannel.isEmpty()) return;
     m_ws->sendFileEdit(m_activeChannel, filename, position, length, text, isAddition);
 }
 
 void MainWindow::onRemoteFileEdit(const QString &channel, const QString &filename,
-                                  int position, int length, const QString &text,
-                                  bool isAddition)
+                                   int position, int length, const QString &text,
+                                   bool isAddition)
 {
     if (channel != m_activeChannel) return;
     if (filename != m_currentFile) return;
@@ -444,7 +452,7 @@ void MainWindow::onRemoteFileEdit(const QString &channel, const QString &filenam
 }
 
 void MainWindow::onFileUploadReceived(const QString &channel, const QString &filename,
-                                      const QByteArray &content)
+                                       const QByteArray &content)
 {
     qDebug() << "[FileUpload] Received:" << filename
              << "for channel:" << channel
@@ -493,9 +501,9 @@ void MainWindow::onFileUploadReceived(const QString &channel, const QString &fil
 
             connect(fileWidget, &fileItemWidget::fileSelected,
                     this, [this](const QString &path) {
-                        m_editor->loadFile(path);
-                        m_currentFile = QFileInfo(path).fileName();
-                    });
+                m_editor->loadFile(path);
+                m_currentFile = QFileInfo(path).fileName();
+            });
 
             qDebug() << "[FileUpload] Added to tree:" << filename;
             break;
