@@ -99,15 +99,23 @@ function getChannel(name) {
 
 function broadcast(channelName, payload, exclude = null) {
   const members = channels.get(channelName);
-  if (!members) return;
+  if (!members) {
+    console.log(`[broadcast] No members in channel "${channelName}"`);
+    return;
+  }
 
   const data = typeof payload === "string" ? payload : JSON.stringify(payload);
+  let sent = 0;
 
   for (const client of members) {
     if (client !== exclude && client.readyState === 1) {
       client.send(data);
+      sent++;
     }
   }
+
+  const type = typeof payload === "object" ? payload.type : "raw";
+  console.log(`[broadcast] "${channelName}" type=${type} → ${sent}/${members.size} clients`);
 }
 
 // Send to ALL connected clients, not just a single channel
@@ -146,6 +154,7 @@ wss.on("connection", async (ws) => {
   ws.isAlive = true;
   ws.currentChannel = null;
   ws.displayName = "anonymous";
+  console.log(`[WS] New connection (total clients: ${wss.clients.size})`);
 
   ws.on("pong", () => {
     ws.isAlive = true;
@@ -176,8 +185,11 @@ wss.on("connection", async (ws) => {
     try {
       msg = JSON.parse(raw);
     } catch {
+      console.error("Failed to parse message:", raw.toString().slice(0, 200));
       return;
     }
+
+    console.log(`[WS] type="${msg.type}" channel="${msg.channel}" sender="${msg.sender}" from=${ws.displayName}`);
 
     // ── JOIN ──────────────────────────────────────────────────────────────
     if (msg.type === "join") {
