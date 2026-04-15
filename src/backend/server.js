@@ -8,7 +8,7 @@ import { createServer } from "http";
 dotenv.config();
 
 const app = express();
-app.use(express.json({ limit: "15mb" }));
+app.use(express.json({ limit: "50mb" }));
 app.use(cors());
 
 const PORT = process.env.PORT || 3000;
@@ -27,12 +27,8 @@ async function connectDB() {
     await client.connect();
     db = client.db();
 
-    // Create indexes for efficient queries
-    await db.collection("messages").createIndex({ channel: 1, createdAt: 1 });
+    // Ensure the channels collection exists with a unique index
     await db.collection("channels").createIndex({ name: 1 }, { unique: true });
-    await db
-      .collection("files")
-      .createIndex({ channel: 1, filename: 1 }, { unique: true });
 
     console.log("MongoDB connected");
   } catch (err) {
@@ -41,7 +37,7 @@ async function connectDB() {
   }
 }
 
-// ── REST routes ──────────────────────────────────────────────────────────────
+// ── REST endpoints (unchanged) ───────────────────────────────────────────────
 
 app.get("/", (req, res) => {
   res.json({ status: "NoteFlow API running" });
@@ -88,9 +84,9 @@ app.get("/files/:channel", async (req, res) => {
   }
 });
 
-// ── WebSocket setup ──────────────────────────────────────────────────────────
+// ── In-memory channel membership ────────────────────────────────────────────
 
-const channels = new Map(); // in-memory: channel name → Set of ws clients
+const channels = new Map(); // channelName -> Set<ws>
 
 function getChannel(name) {
   if (!channels.has(name)) channels.set(name, new Set());
@@ -99,41 +95,31 @@ function getChannel(name) {
 
 function broadcast(channelName, payload, exclude = null) {
   const members = channels.get(channelName);
-  if (!members) {
-    console.log(`[broadcast] No members in channel "${channelName}"`);
-    return;
-  }
+  if (!members) return;
 
-  const data = typeof payload === "string" ? payload : JSON.stringify(payload);
-  let sent = 0;
+  const data = JSON.stringify(payload);
 
   for (const client of members) {
     if (client !== exclude && client.readyState === 1) {
       client.send(data);
-      sent++;
-    }
-  }
-
-  const type = typeof payload === "object" ? payload.type : "raw";
-  console.log(`[broadcast] "${channelName}" type=${type} → ${sent}/${members.size} clients`);
-}
-
-// Send to ALL connected clients, not just a single channel
-function broadcastAll(payload, exclude = null) {
-  const data = typeof payload === "string" ? payload : JSON.stringify(payload);
-
-  for (const client of wss.clients) {
-    if (client !== exclude && client.readyState === 1) {
-      client.send(data);
     }
   }
 }
+
+// Send a payload to a single client
+function sendTo(ws, payload) {
+  if (ws.readyState === 1) {
+    ws.send(JSON.stringify(payload));
+  }
+}
+
+// ── WebSocket server ─────────────────────────────────────────────────────────
 
 const server = createServer(app);
-
-const wss = new WebSocketServer({ server, maxPayload: 10 * 1024 * 1024 });
-
-// ── Keep-alive ping/pong ─────────────────────────────────────────────────────
+const wss = new WebSocketServer({
+  server,
+  maxPayload: 50 * 1024 * 1024, // 50 MB — needed for file uploads
+});
 
 const keepAlive = setInterval(() => {
   wss.clients.forEach((ws) => {
@@ -148,52 +134,38 @@ const keepAlive = setInterval(() => {
 
 wss.on("close", () => clearInterval(keepAlive));
 
-// ── Connection handler ───────────────────────────────────────────────────────
-
 wss.on("connection", async (ws) => {
   ws.isAlive = true;
   ws.currentChannel = null;
   ws.displayName = "anonymous";
-  console.log(`[WS] New connection (total clients: ${wss.clients.size})`);
 
   ws.on("pong", () => {
     ws.isAlive = true;
   });
 
-  // ── Send the full channel list to the newly connected client ──
+  // ── Send the persisted channel list on connect ──
   try {
-    const allChannels = await db
-      .collection("channels")
-      .find({}, { projection: { name: 1, _id: 0 } })
-      .toArray();
-
-    const channelNames = allChannels.map((c) => c.name);
-
-    ws.send(
-      JSON.stringify({
-        type: "channel_list",
-        channels: channelNames,
-      })
-    );
+    const channelDocs = await db.collection("channels").find().toArray();
+    const names = channelDocs.map((c) => c.name);
+    sendTo(ws, { type: "channel_list", channels: names });
   } catch (err) {
-    console.error("Failed to send channel list on connect:", err.message);
+    console.error("Failed to send channel list:", err);
   }
 
+  // ── Message router ──
   ws.on("message", async (raw) => {
     let msg;
-
     try {
       msg = JSON.parse(raw);
     } catch {
-      console.error("Failed to parse message:", raw.toString().slice(0, 200));
       return;
     }
 
-    console.log(`[WS] type="${msg.type}" channel="${msg.channel}" sender="${msg.sender}" from=${ws.displayName}`);
-
-    // ── JOIN ──────────────────────────────────────────────────────────────
+    // ────────────────────────────────────────────────────────────────────
+    // JOIN — switch channels, send message history + file list to joiner
+    // ────────────────────────────────────────────────────────────────────
     if (msg.type === "join") {
-      // leave previous channel
+      // Leave previous channel
       if (ws.currentChannel) {
         const prev = channels.get(ws.currentChannel);
         if (prev) {
@@ -208,7 +180,6 @@ wss.on("connection", async (ws) => {
 
       ws.currentChannel = msg.channel;
       ws.displayName = msg.sender || "anonymous";
-
       getChannel(msg.channel).add(ws);
 
       broadcast(msg.channel, {
@@ -217,102 +188,93 @@ wss.on("connection", async (ws) => {
         count: channels.get(msg.channel).size,
       });
 
-      // ── Send message history for this channel ──
+      // Send message history to the joining client
       try {
         const history = await db
           .collection("messages")
           .find({ channel: msg.channel })
-          .sort({ createdAt: 1 })
-          .limit(200)
+          .sort({ _id: 1 })
           .toArray();
 
-        ws.send(
-          JSON.stringify({
-            type: "message_history",
-            channel: msg.channel,
-            messages: history.map((m) => ({
-              sender: m.sender,
-              text: m.text,
-              ts: m.ts,
-            })),
-          })
-        );
+        sendTo(ws, {
+          type: "message_history",
+          channel: msg.channel,
+          messages: history.map((m) => ({
+            sender: m.sender,
+            text: m.text,
+            ts: m.ts,
+          })),
+        });
       } catch (err) {
-        console.error("Failed to send message history:", err.message);
+        console.error("Failed to send message history:", err);
       }
 
-      // ── Send existing files in this channel ──
+      // Send all files that belong to this channel
       try {
-        const existingFiles = await db
+        const files = await db
           .collection("files")
           .find({ channel: msg.channel })
           .toArray();
 
-        for (const file of existingFiles) {
-          ws.send(
-            JSON.stringify({
-              type: "file_upload",
-              channel: file.channel,
-              sender: file.sender,
-              filename: file.filename,
-              content: file.content,
-            })
-          );
+        for (const f of files) {
+          sendTo(ws, {
+            type: "file_upload",
+            channel: msg.channel,
+            filename: f.filename,
+            content: f.content, // already base64
+          });
         }
       } catch (err) {
-        console.error("Failed to send existing files on join:", err.message);
+        console.error("Failed to send file list:", err);
       }
     }
 
-    // ── CHANNEL CREATE ───────────────────────────────────────────────────
+    // ────────────────────────────────────────────────────────────────────
+    // CHANNEL CREATE — persist + broadcast to everyone
+    // ────────────────────────────────────────────────────────────────────
     else if (msg.type === "channel_create") {
       if (!msg.channel) return;
 
-      // Persist the channel to MongoDB
       try {
-        await db.collection("channels").updateOne(
-          { name: msg.channel },
-          {
-            $set: {
-              name: msg.channel,
-              createdBy: msg.sender,
-              createdAt: new Date(),
-            },
-          },
-          { upsert: true }
-        );
+        await db
+          .collection("channels")
+          .insertOne({ name: msg.channel, createdBy: msg.sender });
       } catch (err) {
-        console.error("Failed to persist channel:", err.message);
+        // Duplicate key = channel already exists — that's fine
+        if (err.code !== 11000) console.error("channel_create error:", err);
       }
 
-      // Broadcast to all other connected clients so their sidebars update
-      broadcastAll(
-        {
-          type: "channel_create",
-          channel: msg.channel,
-          sender: msg.sender,
-        },
-        ws
-      );
+      // Notify every connected client (except the creator)
+      for (const client of wss.clients) {
+        if (client !== ws && client.readyState === 1) {
+          client.send(
+            JSON.stringify({
+              type: "channel_create",
+              channel: msg.channel,
+            })
+          );
+        }
+      }
     }
 
-    // ── CHAT MESSAGE ─────────────────────────────────────────────────────
+    // ────────────────────────────────────────────────────────────────────
+    // MESSAGE — persist + broadcast
+    // ────────────────────────────────────────────────────────────────────
     else if (msg.type === "message") {
       if (!msg.channel || !msg.text) return;
 
       const ts = msg.ts || new Date().toTimeString().slice(0, 5);
 
-      // Persist to MongoDB
+      // Persist the message
       try {
         await db.collection("messages").insertOne({
           channel: msg.channel,
           sender: msg.sender,
           text: msg.text,
-          ts: ts,
-          createdAt: new Date(),
+          ts,
         });
       } catch (err) {
-        console.error("Failed to persist message:", err.message);
+        console.error("Failed to persist message:", err);
       }
 
       broadcast(
@@ -322,13 +284,55 @@ wss.on("connection", async (ws) => {
           channel: msg.channel,
           sender: msg.sender,
           text: msg.text,
-          ts: ts,
+          ts,
         },
         ws
       );
     }
 
-    // ── FILE EDIT (real-time collaborative editing) ───────────────────────
+    // ────────────────────────────────────────────────────────────────────
+    // FILE UPLOAD — persist + broadcast to channel (except sender)
+    // ────────────────────────────────────────────────────────────────────
+    else if (msg.type === "file_upload") {
+      if (!msg.channel || !msg.filename || !msg.content) return;
+
+      console.log(
+        `[file_upload] ${msg.filename} -> ${msg.channel} (${msg.content.length} base64 chars)`
+      );
+
+      // Persist (upsert so re-uploading the same filename replaces it)
+      try {
+        await db.collection("files").updateOne(
+          { channel: msg.channel, filename: msg.filename },
+          {
+            $set: {
+              content: msg.content,
+              sender: msg.sender,
+              uploadedAt: new Date(),
+            },
+          },
+          { upsert: true }
+        );
+      } catch (err) {
+        console.error("Failed to persist file:", err);
+      }
+
+      // Broadcast to everyone else in the channel
+      broadcast(
+        msg.channel,
+        {
+          type: "file_upload",
+          channel: msg.channel,
+          filename: msg.filename,
+          content: msg.content,
+        },
+        ws
+      );
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // FILE EDIT — broadcast to channel (except sender)
+    // ────────────────────────────────────────────────────────────────────
     else if (msg.type === "file_edit") {
       if (!msg.channel || !msg.filename) return;
 
@@ -347,45 +351,9 @@ wss.on("connection", async (ws) => {
         ws
       );
     }
-
-    // ── FILE UPLOAD (new file shared to channel) ─────────────────────────
-    else if (msg.type === "file_upload") {
-      if (!msg.channel || !msg.filename || msg.content == null) return;
-
-      console.log(`file_upload: ${msg.filename} → channel "${msg.channel}" (${msg.content.length} chars base64)`);
-
-      try {
-        await db.collection("files").updateOne(
-          { channel: msg.channel, filename: msg.filename },
-          {
-            $set: {
-              channel: msg.channel,
-              sender: msg.sender,
-              filename: msg.filename,
-              content: msg.content,
-              updatedAt: new Date(),
-            },
-          },
-          { upsert: true }
-        );
-      } catch (err) {
-        console.error("Failed to persist file upload:", err.message);
-      }
-
-      broadcast(
-        msg.channel,
-        {
-          type: "file_upload",
-          channel: msg.channel,
-          sender: msg.sender,
-          filename: msg.filename,
-          content: msg.content,
-        },
-        ws
-      );
-    }
   });
 
+  // ── Cleanup on disconnect ──
   ws.on("close", () => {
     if (ws.currentChannel) {
       const ch = channels.get(ws.currentChannel);
