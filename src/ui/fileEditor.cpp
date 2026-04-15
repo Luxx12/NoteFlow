@@ -15,6 +15,7 @@
 #include <QFontDatabase>
 #include <QClipboard>
 #include <QApplication>
+#include <QDebug>
 #include <QStatusBar>
 #include <Qsci/qsciscintilla.h>
 
@@ -70,22 +71,20 @@ fileEditor::fileEditor(QWidget *parent) : QWidget{parent}{
     root->addWidget(editor);
 }
 
-void fileEditor::loadFile(QFile *file, QString *filename){
-    int i, j, isExt = 0;
-    ext.resize(7); // can an extension be any longer than this?
-    j = 0;
-    if(file->open(QIODeviceBase::ReadOnly)){
-        this->editor->read(file);
-        this->fileLabel->setText(*filename);
+void fileEditor::loadFile(QString &path){
+    if(path.isEmpty()) return;
+
+    QFile file(path);
+    QFileInfo info(path);
+    QString filename = info.fileName();
+    if(file.open(QIODeviceBase::ReadOnly)){
+        this->editor->read(&file);
+        this->fileLabel->setText(filename);
+        file.close();
+    }else{
+        qDebug() << "Failed to open file";
     }
-    for(i = 0; i < filename->length(); ++i){
-        if(filename->at(i) == QChar('.'))
-            isExt = 1;
-        if(isExt){
-            ext[j] = QChar(filename->at(i));
-            ++j;
-        }
-    }
+    this->ext = info.suffix();
     // set the lexer here later
 
 }
