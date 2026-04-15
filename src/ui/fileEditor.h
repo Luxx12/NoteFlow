@@ -2,51 +2,54 @@
 #define FILEEDITOR_H
 
 #include <QWidget>
-#include <QPlainTextEdit>
-#include <QLabel>
-#include <QPushButton>
-#include <QFileDialog>
-#include <QFile>
-#include <QTextStream>
-#include <QFileInfo>
-#include <QHBoxLayout>
-#include <QVBoxLayout>
-#include <QFrame>
-#include <QWidget>
 #include <QFont>
-#include <QFontDatabase>
-#include <QClipboard>
-#include <QApplication>
-#include <QStatusBar>
-#include <QFileInfo>
+#include <QString>
 #include <Qsci/qsciscintilla.h>
 
-class QVBoxlayout;
-class QHBoxlayout;
+class QVBoxLayout;
+class QHBoxLayout;
 class QLabel;
-class QFrame;
-class QsciScintilla;
+class QPushButton;
+class QsciLexer;
 
 class fileEditor : public QWidget
 {
     Q_OBJECT
 public:
     explicit fileEditor(QWidget *parent = nullptr);
+
+    QString currentFileName() const;
+    QString currentFilePath() const;
+
 signals:
+    void localFileChanged(const QString &filename, int position, int length,
+                          const QString &text, bool isAddition);
 
 public slots:
-    void loadFile(QString &path); // uploads a file to the editor and updates header
-    void newFile(QString *filename);
+    void loadFile(const QString &path);
+    void newFile(const QString &filename);
+    void saveFile();
+    void applyRemoteEdit(int position, int length, const QString &text, bool isAddition);
+
+private slots:
+    void onScintillaModified(int position, int modificationType, const char *text,
+                             int length, int linesAdded, int line,
+                             int foldLevelNow, int foldLevelPrev,
+                             int token, int annotationLinesAdded);
 
 private:
-    QVBoxLayout *root;
-    QWidget *topBar;
-    QHBoxLayout *topLayout;
-    QLabel *fileLabel;
-    QFrame *divider;
+    void setLexerForExtension(const QString &ext);
+    void applyDarkTheme(QsciLexer *lexer);
+
+    QVBoxLayout   *root;
+    QHBoxLayout   *topLayout;
+    QLabel        *fileLabel;
+    QPushButton   *saveBtn;
     QsciScintilla *editor;
-    QFont font;
-    QString ext; //file extension
+    QFont          font;
+    QString        m_filePath;
+    QString        ext;
+    bool           m_isRemoteEdit = false;
 };
 
-#endif // FILEVIEWER_H
+#endif // FILEEDITOR_H
