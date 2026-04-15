@@ -2,25 +2,23 @@
 #define FILEITEMWIDGET_H
 
 #include <QWidget>
-#include <QFile>
-#include <QFileInfo>
 #include <QLabel>
 #include <QMouseEvent>
-
-class QFile;
 
 class fileItemWidget : public QWidget
 {
     Q_OBJECT
 public:
-    explicit fileItemWidget(QWidget *parent = nullptr, QString path = "");
+    explicit fileItemWidget(QWidget *parent = nullptr, const QString &path = "");
 
 signals:
-    void fileSelected(QString &path);
+    void fileSelected(const QString &path);
+
 protected:
     void mouseReleaseEvent(QMouseEvent *event) override;
+
 private:
-    QString *filePath;
+    QString filePath;   // value, not pointer — no leak
     QLabel *label;
 };
 
