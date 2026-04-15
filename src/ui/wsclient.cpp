@@ -4,6 +4,7 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QDateTime>
+#include <QDebug>
 
 WsClient::WsClient(const QString &displayName, QObject *parent)
     : QObject(parent), m_name(displayName)
@@ -119,7 +120,7 @@ void WsClient::onTextMessage(const QString &raw)
             obj["length"].toInt(),
             obj["text"].toString(),
             obj["isAddition"].toBool()
-            );
+        );
     }
 
     // ── File upload ──────────────────────────────────────────────────────
@@ -135,7 +136,7 @@ void WsClient::onTextMessage(const QString &raw)
             obj["channel"].toString(),
             obj["filename"].toString(),
             content
-            );
+        );
     }
 }
 
@@ -145,8 +146,8 @@ void WsClient::onError(QAbstractSocket::SocketError)
 }
 
 void WsClient::sendFileEdit(const QString &channel, const QString &filename,
-                            int position, int length, const QString &text,
-                            bool isAddition)
+                              int position, int length, const QString &text,
+                              bool isAddition)
 {
     QJsonObject obj;
     obj["type"]       = "file_edit";
@@ -162,8 +163,13 @@ void WsClient::sendFileEdit(const QString &channel, const QString &filename,
 }
 
 void WsClient::sendFileUpload(const QString &channel, const QString &filename,
-                              const QByteArray &content)
+                                const QByteArray &content)
 {
+    qDebug() << "[WsClient] sendFileUpload called:"
+             << filename << "channel:" << channel
+             << "content size:" << content.size()
+             << "ws state:" << m_ws->state();
+
     QJsonObject obj;
     obj["type"]     = "file_upload";
     obj["channel"]  = channel;
@@ -171,5 +177,8 @@ void WsClient::sendFileUpload(const QString &channel, const QString &filename,
     obj["filename"] = filename;
     obj["content"]  = QString::fromLatin1(content.toBase64());
 
-    m_ws->sendTextMessage(QJsonDocument(obj).toJson(QJsonDocument::Compact));
+    QString json = QJsonDocument(obj).toJson(QJsonDocument::Compact);
+    qDebug() << "[WsClient] Sending JSON, total size:" << json.size() << "bytes";
+    m_ws->sendTextMessage(json);
+    qDebug() << "[WsClient] sendTextMessage returned";
 }
