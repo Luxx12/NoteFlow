@@ -2,6 +2,7 @@
 
 #include <QJsonObject>
 #include <QJsonDocument>
+#include <QJsonArray>
 #include <QDateTime>
 
 WsClient::WsClient(const QString &displayName, QObject *parent)
@@ -12,7 +13,7 @@ WsClient::WsClient(const QString &displayName, QObject *parent)
     connect(m_ws, &QWebSocket::disconnected, this, &WsClient::onDisconnected);
     connect(m_ws, &QWebSocket::textMessageReceived, this, &WsClient::onTextMessage);
     connect(m_ws,
-            QOverload<QAbstractSocket::SocketError>::of (&QWebSocket::error),
+            QOverload<QAbstractSocket::SocketError>::of(&QWebSocket::error),
             this, &WsClient::onError);
 }
 
@@ -40,6 +41,15 @@ void WsClient::joinChannel(const QString &channel)
     m_ws->sendTextMessage(QJsonDocument(obj).toJson(QJsonDocument::Compact));
 }
 
+void WsClient::sendChannelCreate(const QString &channel)
+{
+    QJsonObject obj;
+    obj["type"]    = "channel_create";
+    obj["channel"] = channel;
+    obj["sender"]  = m_name;
+    m_ws->sendTextMessage(QJsonDocument(obj).toJson(QJsonDocument::Compact));
+}
+
 void WsClient::onConnected()    { emit connected(); }
 void WsClient::onDisconnected() { emit disconnected(); }
 
@@ -52,22 +62,112 @@ void WsClient::onTextMessage(const QString &raw)
     QJsonObject obj  = doc.object();
     QString     type = obj["type"].toString();
 
-    if (type == "message") {
+    // ── Channel list (sent by server on connect) ─────────────────────────
+    if (type == "channel_list") {
+        QJsonArray arr = obj["channels"].toArray();
+        QStringList names;
+        for (const auto &v : arr)
+            names.append(v.toString());
+        emit channelListReceived(names);
+    }
+
+    // ── Channel created by another user ──────────────────────────────────
+    else if (type == "channel_create") {
+        emit channelCreated(obj["channel"].toString());
+    }
+
+    // ── Message history (sent by server on join) ─────────────────────────
+    else if (type == "message_history") {
+        QString channel = obj["channel"].toString();
+        QJsonArray arr  = obj["messages"].toArray();
+        QVector<Message> messages;
+
+        for (const auto &v : arr) {
+            QJsonObject m = v.toObject();
+            Message msg;
+            msg.sender    = m["sender"].toString();
+            msg.text      = m["text"].toString();
+            msg.timestamp = m["ts"].toString();
+            msg.isMe      = (msg.sender == m_name);
+            messages.append(msg);
+        }
+
+        emit messageHistoryReceived(channel, messages);
+    }
+
+    // ── Live chat message ────────────────────────────────────────────────
+    else if (type == "message") {
+        if (obj["sender"].toString() == m_name) return;
+
         Message msg;
         msg.sender    = obj["sender"].toString();
         msg.text      = obj["text"].toString();
-        msg.timestamp = obj.contains("ts")
-                            ? obj["ts"].toString()
-                            : QDateTime::currentDateTime().toString("hh:mm");
-        msg.isMe      = (msg.sender == m_name);
+        msg.timestamp = obj["ts"].toString();
+        msg.isMe      = false;
+
         emit messageReceived(obj["channel"].toString(), msg);
     }
-    else if (type == "presence") {
-        emit presenceUpdate(obj["channel"].toString(), obj["count"].toInt());
+
+    // ── File edit ────────────────────────────────────────────────────────
+    else if (type == "file_edit") {
+        if (obj["sender"].toString() == m_name) return;
+
+        emit fileEditReceived(
+            obj["channel"].toString(),
+            obj["filename"].toString(),
+            obj["position"].toInt(),
+            obj["length"].toInt(),
+            obj["text"].toString(),
+            obj["isAddition"].toBool()
+            );
+    }
+
+    // ── File upload ──────────────────────────────────────────────────────
+    else if (type == "file_upload") {
+        if (obj["sender"].toString() == m_name) return;
+
+        QByteArray content = QByteArray::fromBase64(
+            obj["content"].toString().toLatin1());
+
+        emit fileUploadReceived(
+            obj["channel"].toString(),
+            obj["filename"].toString(),
+            content
+            );
     }
 }
 
 void WsClient::onError(QAbstractSocket::SocketError)
 {
     emit errorOccurred(m_ws->errorString());
+}
+
+void WsClient::sendFileEdit(const QString &channel, const QString &filename,
+                            int position, int length, const QString &text,
+                            bool isAddition)
+{
+    QJsonObject obj;
+    obj["type"]       = "file_edit";
+    obj["channel"]    = channel;
+    obj["sender"]     = m_name;
+    obj["filename"]   = filename;
+    obj["position"]   = position;
+    obj["length"]     = length;
+    obj["text"]       = text;
+    obj["isAddition"] = isAddition;
+
+    m_ws->sendTextMessage(QJsonDocument(obj).toJson(QJsonDocument::Compact));
+}
+
+void WsClient::sendFileUpload(const QString &channel, const QString &filename,
+                              const QByteArray &content)
+{
+    QJsonObject obj;
+    obj["type"]     = "file_upload";
+    obj["channel"]  = channel;
+    obj["sender"]   = m_name;
+    obj["filename"] = filename;
+    obj["content"]  = QString::fromLatin1(content.toBase64());
+
+    m_ws->sendTextMessage(QJsonDocument(obj).toJson(QJsonDocument::Compact));
 }
