@@ -120,7 +120,7 @@ void WsClient::onTextMessage(const QString &raw)
             obj["length"].toInt(),
             obj["text"].toString(),
             obj["isAddition"].toBool()
-        );
+            );
     }
 
     // ── File upload ──────────────────────────────────────────────────────
@@ -136,7 +136,7 @@ void WsClient::onTextMessage(const QString &raw)
             obj["channel"].toString(),
             obj["filename"].toString(),
             content
-        );
+            );
     }
 }
 
@@ -146,8 +146,8 @@ void WsClient::onError(QAbstractSocket::SocketError)
 }
 
 void WsClient::sendFileEdit(const QString &channel, const QString &filename,
-                              int position, int length, const QString &text,
-                              bool isAddition)
+                            int position, int length, const QString &text,
+                            bool isAddition)
 {
     QJsonObject obj;
     obj["type"]       = "file_edit";
@@ -163,7 +163,7 @@ void WsClient::sendFileEdit(const QString &channel, const QString &filename,
 }
 
 void WsClient::sendFileUpload(const QString &channel, const QString &filename,
-                                const QByteArray &content)
+                              const QByteArray &content)
 {
     qDebug() << "[WsClient] sendFileUpload called:"
              << filename << "channel:" << channel
