@@ -7,68 +7,71 @@
 
 ConnectDialog::ConnectDialog(QWidget *parent) : QDialog(parent)
 {
-    setWindowTitle("Connect");
-    setFixedSize(380, 220);
+    setWindowTitle("NoteFlow");
+    setFixedSize(340, 180);
     setStyleSheet(
-        "QDialog { background: #111111; }"
-        "QLabel { color: #888888; font-size: 11px; letter-spacing: 0.08em; }"
-        "QLineEdit {"
-        "  background: #1A1A1A; border: 1px solid #252525; border-radius: 6px;"
-        "  color: #E0E0E0; font-size: 13px; padding: 0 12px; height: 36px;"
-        "}"
-        "QLineEdit:focus { border-color: #404040; }"
-        "QLineEdit::placeholder { color: #333333; }");
+        "QDialog { background: #0A0C12; border: 2px solid #1A2030; }"
+        "QLabel  { color: #4A5670; font-size: 10px; font-weight: 600;"
+        "           letter-spacing: 0.15em; font-family: 'Consolas', monospace; }");
 
     auto *layout = new QVBoxLayout(this);
-    layout->setContentsMargins(28, 28, 28, 28);
+    layout->setContentsMargins(32, 28, 32, 28);
     layout->setSpacing(0);
 
-    auto *title = new QLabel("connect to server", this);
+    auto *title = new QLabel("NOTEFLOW", this);
     title->setStyleSheet(
-        "color: #E0E0E0; font-size: 15px; font-weight: 700; letter-spacing: 0.04em;");
+        "color: #5B8AD4; font-size: 15px; font-weight: 700;"
+        " letter-spacing: 0.18em; font-family: 'Consolas', monospace;");
     layout->addWidget(title);
-    layout->addSpacing(24);
+    layout->addSpacing(28);
 
-    layout->addWidget(new QLabel("SERVER URL", this));
-    layout->addSpacing(6);
-
-    m_urlInput = new QLineEdit(this);
-    m_urlInput->setPlaceholderText("ws://your-server:port");
-    m_urlInput->setFixedHeight(36);
-    layout->addWidget(m_urlInput);
-    layout->addSpacing(14);
-
-    layout->addWidget(new QLabel("DISPLAY NAME", this));
-    layout->addSpacing(6);
+    auto *nameLabel = new QLabel("DISPLAY NAME", this);
+    layout->addWidget(nameLabel);
+    layout->addSpacing(4);
 
     m_nameInput = new QLineEdit(this);
-    m_nameInput->setPlaceholderText("username");
-    m_nameInput->setFixedHeight(36);
+    m_nameInput->setPlaceholderText("enter your name");
+    m_nameInput->setFixedHeight(34);
+    m_nameInput->setStyleSheet(
+        "QLineEdit {"
+        "  background: #080A0E; border: 1px solid #1A2030; border-radius: 0px;"
+        "  color: #A8B8D0; font-size: 13px; font-family: 'Consolas', monospace;"
+        "  padding: 0 10px;"
+        "}"
+        "QLineEdit:focus { border-color: #5B8AD4; }"
+        "QLineEdit::placeholder { color: #1A2030; }");
     layout->addWidget(m_nameInput);
-    layout->addSpacing(20);
+    layout->addSpacing(24);
 
-    auto *btn = new QPushButton("Connect", this);
-    btn->setFixedHeight(38);
+    auto *btn = new QPushButton("CONNECT", this);
+    btn->setFixedHeight(36);
     btn->setCursor(Qt::PointingHandCursor);
     btn->setStyleSheet(
         "QPushButton {"
-        "  background: #2A2A2A; border: 1px solid #383838; border-radius: 6px;"
-        "  color: #E0E0E0; font-size: 13px; font-weight: 600; letter-spacing: 0.05em;"
+        "  background: #101828; border: 1px solid #5B8AD4; border-radius: 0px;"
+        "  color: #5B8AD4; font-size: 12px; font-weight: 700;"
+        "  letter-spacing: 0.15em; font-family: 'Consolas', monospace;"
         "}"
-        "QPushButton:hover { background: #333333; }"
-        "QPushButton:pressed { background: #222222; }");
+        "QPushButton:hover { background: #1A2438; color: #7AAAE8; }"
+        "QPushButton:pressed { background: #0A0E18; }");
     layout->addWidget(btn);
 
     connect(btn,         &QPushButton::clicked,     this, &ConnectDialog::onConnect);
     connect(m_nameInput, &QLineEdit::returnPressed, this, &ConnectDialog::onConnect);
 }
 
-QString ConnectDialog::serverUrl()   const { return m_urlInput->text().trimmed(); }
-QString ConnectDialog::displayName() const { return m_nameInput->text().trimmed(); }
+QString ConnectDialog::serverUrl() const
+{
+    return "wss://noteflow-production-cd83.up.railway.app/";
+}
+
+QString ConnectDialog::displayName() const
+{
+    return m_nameInput->text().trimmed();
+}
 
 void ConnectDialog::onConnect()
 {
-    if (m_urlInput->text().trimmed().isEmpty() ||
-        m_nameInput->text().trimmed().isEmpty()) return;
+    if (m_nameInput->text().trimmed().isEmpty()) return;
     accept();
 }
