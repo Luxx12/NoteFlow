@@ -14,7 +14,7 @@ MessageBubble::MessageBubble(const Message &msg, QWidget *parent)
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
 
     auto *outer = new QHBoxLayout(this);
-    outer->setContentsMargins(16, 4, 16, 4);
+    outer->setContentsMargins(16, 3, 16, 3);
 
     auto *col = new QVBoxLayout();
     col->setSpacing(2);
@@ -22,14 +22,15 @@ MessageBubble::MessageBubble(const Message &msg, QWidget *parent)
     if (!msg.isMe) {
         auto *senderLabel = new QLabel(msg.sender, this);
         senderLabel->setStyleSheet(
-            "color: #606060; font-size: 11px; font-weight: 600; letter-spacing: 0.08em;");
+            "color: #5B8AD4; font-size: 10px; font-weight: 700;"
+            " letter-spacing: 0.08em; font-family: 'Consolas', monospace;");
         col->addWidget(senderLabel);
     }
 
     auto *bubble = new QFrame(this);
     bubble->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Minimum);
     auto *bl = new QVBoxLayout(bubble);
-    bl->setContentsMargins(12, 8, 12, 8);
+    bl->setContentsMargins(10, 8, 10, 6);
     bl->setSpacing(4);
 
     auto *textLabel = new QLabel(msg.text, bubble);
@@ -39,17 +40,21 @@ MessageBubble::MessageBubble(const Message &msg, QWidget *parent)
 
     if (msg.isMe) {
         bubble->setStyleSheet(
-            "QFrame { background: #2A2A2A; border-radius: 12px; border-top-right-radius: 3px; }");
-        textLabel->setStyleSheet("color: #E8E8E8; font-size: 13px;");
+            "QFrame { background: #101828; border: 1px solid #1A2030;"
+            " border-radius: 0px; }");
+        textLabel->setStyleSheet(
+            "color: #A8B8D0; font-size: 13px; font-family: 'Consolas', monospace;");
     } else {
         bubble->setStyleSheet(
-            "QFrame { background: #1E1E1E; border-radius: 12px; border-top-left-radius: 3px; "
-            "border: 1px solid #2A2A2A; }");
-        textLabel->setStyleSheet("color: #C8C8C8; font-size: 13px;");
+            "QFrame { background: #0C0E16; border: 1px solid #1A2030;"
+            " border-radius: 0px; }");
+        textLabel->setStyleSheet(
+            "color: #8898B4; font-size: 13px; font-family: 'Consolas', monospace;");
     }
 
     auto *timeLabel = new QLabel(msg.timestamp, bubble);
-    timeLabel->setStyleSheet("color: #444444; font-size: 10px;");
+    timeLabel->setStyleSheet(
+        "color: #283048; font-size: 10px; font-family: 'Consolas', monospace;");
     timeLabel->setAlignment(Qt::AlignRight);
 
     bl->addWidget(textLabel);
@@ -63,7 +68,7 @@ MessageBubble::MessageBubble(const Message &msg, QWidget *parent)
     effect->setOpacity(0.0);
     setGraphicsEffect(effect);
     auto *anim = new QPropertyAnimation(effect, "opacity", this);
-    anim->setDuration(180);
+    anim->setDuration(120);
     anim->setStartValue(0.0);
     anim->setEndValue(1.0);
     QTimer::singleShot(10, anim, [anim]() { anim->start(); });
