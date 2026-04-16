@@ -7,12 +7,12 @@
 fileItemWidget::fileItemWidget(QWidget *parent, const QString &path)
     : QWidget(parent), filePath(path)
 {
-    QFileInfo info(path);   // was QFile — wrong class, showed full path
+    QFileInfo info(path);
 
-    setFixedHeight(36);
+    setFixedHeight(30);
     setStyleSheet(
         "QWidget {"
-        "  border-bottom: 1px solid #1A1A1A;"
+        "  border-bottom: 1px solid #121828;"
         "  background: transparent;"
         "}");
 
@@ -25,7 +25,8 @@ fileItemWidget::fileItemWidget(QWidget *parent, const QString &path)
 
     label = new QLabel(info.fileName(), this);
     label->setStyleSheet(
-        "color: #C8C8C8; font-size: 13px; font-weight: 600; background: transparent;");
+        "color: #6878A0; font-size: 11px; font-weight: 600;"
+        " font-family: 'Consolas', monospace; background: transparent;");
 
     l->addLayout(topRow);
     topRow->addWidget(label);
