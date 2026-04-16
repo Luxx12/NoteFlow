@@ -30,17 +30,18 @@
 
 fileEditor::fileEditor(QWidget *parent) : QWidget(parent)
 {
-    font.setFamilies({"Consolas", "Menlo"});
+    font.setFamilies({"Consolas", "Menlo", "Courier New"});
     font.setStyleHint(QFont::Monospace);
+    font.setPointSize(11);
 
     root = new QVBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
 
     // ── Top bar ──
     QFrame *topBar = new QFrame();
-    topBar->setFixedHeight(56);
+    topBar->setFixedHeight(48);
     topBar->setStyleSheet(
-        "QFrame { background: #111111; border-bottom: 1px solid #1E1E1E; }");
+        "QFrame { background: #0E1018; border-bottom: 2px solid #1A2030; }");
 
     topLayout = new QHBoxLayout(topBar);
     topLayout->setContentsMargins(20, 0, 20, 0);
@@ -48,20 +49,22 @@ fileEditor::fileEditor(QWidget *parent) : QWidget(parent)
 
     fileLabel = new QLabel("no file", topBar);
     fileLabel->setStyleSheet(
-        "color: #E0E0E0; font-size: 14px; font-weight: 500; letter-spacing: 0.04em;");
+        "color: #5B8AD4; font-size: 12px; font-weight: 700;"
+        " letter-spacing: 0.06em; font-family: 'Consolas', monospace;");
 
-    saveBtn = new QPushButton("Save", topBar);
-    saveBtn->setFixedSize(52, 28);
+    saveBtn = new QPushButton("SAVE", topBar);
+    saveBtn->setFixedSize(52, 26);
     saveBtn->setCursor(Qt::PointingHandCursor);
     saveBtn->setEnabled(false);
     saveBtn->setStyleSheet(
         "QPushButton {"
-        "  background: #2A2A2A; border: 1px solid #383838; border-radius: 4px;"
-        "  color: #C0C0C0; font-size: 11px; font-weight: 600;"
+        "  background: #101828; border: 1px solid #1A2030; border-radius: 0px;"
+        "  color: #4A5670; font-size: 10px; font-weight: 700;"
+        "  letter-spacing: 0.1em; font-family: 'Consolas', monospace;"
         "}"
-        "QPushButton:hover { background: #333333; color: #E0E0E0; }"
-        "QPushButton:pressed { background: #222222; }"
-        "QPushButton:disabled { color: #2E2E2E; border-color: #1E1E1E; background: #181818; }");
+        "QPushButton:hover { border-color: #5B8AD4; color: #5B8AD4; }"
+        "QPushButton:pressed { background: #0A0E18; }"
+        "QPushButton:disabled { color: #121828; border-color: #121828; background: #0C0E16; }");
 
     topLayout->addWidget(fileLabel);
     topLayout->addStretch();
@@ -74,25 +77,28 @@ fileEditor::fileEditor(QWidget *parent) : QWidget(parent)
 
     editor->setMarginType(0, QsciScintilla::NumberMargin);
     editor->setMarginLineNumbers(0, true);
-    editor->setMarginsForegroundColor(QColor(0x88, 0x88, 0x88));
-    editor->setMarginsBackgroundColor(QColor(0x11, 0x11, 0x11));
+    editor->setMarginsForegroundColor(QColor(0x4A, 0x56, 0x70));
+    editor->setMarginsBackgroundColor(QColor(0x0C, 0x0E, 0x16));
     editor->setMarginWidth(0, "00000");
     editor->setMarginType(1, QsciScintilla::SymbolMargin);
-    editor->setMarginWidth(1, 18);
+    editor->setMarginWidth(1, 14);
 
     editor->setCaretLineVisible(true);
     editor->setCaretWidth(2);
-    editor->setCaretForegroundColor(QColor(0xE0, 0xE0, 0xE0));
-    editor->setCaretLineBackgroundColor(QColor(0x1A, 0x1A, 0x1A));
+    editor->setCaretForegroundColor(QColor(0x5B, 0x8A, 0xD4));
+    editor->setCaretLineBackgroundColor(QColor(0x0E, 0x10, 0x1A));
 
-    editor->setPaper(QColor(0x0F, 0x0F, 0x0F));
-    editor->setColor(QColor(0xE0, 0xE0, 0xE0));
+    editor->setPaper(QColor(0x0A, 0x0C, 0x12));
+    editor->setColor(QColor(0xA8, 0xB8, 0xD0));
 
     editor->setTabWidth(4);
     editor->setIndentationsUseTabs(false);
     editor->setBackspaceUnindents(true);
     editor->setAutoIndent(true);
     editor->setBraceMatching(QsciScintilla::SloppyBraceMatch);
+
+    editor->setMatchedBraceBackgroundColor(QColor(0x1A, 0x20, 0x30));
+    editor->setMatchedBraceForegroundColor(QColor(0x5B, 0x8A, 0xD4));
 
     root->addWidget(topBar);
     root->addWidget(editor);
@@ -103,7 +109,6 @@ fileEditor::fileEditor(QWidget *parent) : QWidget(parent)
 
     connect(saveBtn, &QPushButton::clicked, this, &fileEditor::saveFile);
 
-    // Ctrl+S shortcut
     auto *saveShortcut = new QShortcut(QKeySequence::Save, this);
     connect(saveShortcut, &QShortcut::activated, this, &fileEditor::saveFile);
 }
@@ -168,125 +173,120 @@ void fileEditor::saveFile()
     }
 }
 
-// ── Syntax highlighting ──────────────────────────────────────────────────────
+// ── Syntax highlighting (cool blue palette) ──────────────────────────────────
 
 void fileEditor::applyDarkTheme(QsciLexer *lexer)
 {
-    lexer->setDefaultPaper(QColor(0x0F, 0x0F, 0x0F));
-    lexer->setDefaultColor(QColor(0xE0, 0xE0, 0xE0));
+    lexer->setDefaultPaper(QColor(0x0A, 0x0C, 0x12));
+    lexer->setDefaultColor(QColor(0xA8, 0xB8, 0xD0));
     lexer->setDefaultFont(font);
 
     for (int i = 0; i <= 128; ++i) {
-        lexer->setPaper(QColor(0x0F, 0x0F, 0x0F), i);
+        lexer->setPaper(QColor(0x0A, 0x0C, 0x12), i);
         lexer->setFont(font, i);
     }
 
     editor->setLexer(lexer);
 
-    // Re-apply margin colors after lexer change (lexer can reset them)
-    editor->setMarginsBackgroundColor(QColor(0x11, 0x11, 0x11));
-    editor->setMarginsForegroundColor(QColor(0x88, 0x88, 0x88));
+    editor->setMarginsBackgroundColor(QColor(0x0C, 0x0E, 0x16));
+    editor->setMarginsForegroundColor(QColor(0x4A, 0x56, 0x70));
 }
 
 void fileEditor::setLexerForExtension(const QString &extension)
 {
     QsciLexer *lexer = nullptr;
 
-    // ── C / C++ / Objective-C ──
+    // Cool blue syntax palette:
+    // Keywords:    #5B8AD4  (blue accent)
+    // Comments:    #3A4458  (muted slate)
+    // Strings:     #7A9EC4  (light steel)
+    // Numbers:     #8AACD4  (pale blue)
+    // Preproc:     #4A6A9E  (deep blue)
+    // Identifiers: #A8B8D0  (blue-white)
+    // Operators:   #7888A4  (cool gray)
+    // Functions:   #7AAAE8  (bright blue)
+
     if (extension == "cpp" || extension == "c" || extension == "cc"
         || extension == "cxx" || extension == "h" || extension == "hpp"
         || extension == "hxx" || extension == "m" || extension == "mm") {
         auto *l = new QsciLexerCPP(this);
-        l->setColor(QColor(0x56, 0x9C, 0xD6), QsciLexerCPP::Keyword);
-        l->setColor(QColor(0x6A, 0x99, 0x55), QsciLexerCPP::Comment);
-        l->setColor(QColor(0x6A, 0x99, 0x55), QsciLexerCPP::CommentLine);
-        l->setColor(QColor(0x6A, 0x99, 0x55), QsciLexerCPP::CommentDoc);
-        l->setColor(QColor(0xCE, 0x91, 0x78), QsciLexerCPP::DoubleQuotedString);
-        l->setColor(QColor(0xCE, 0x91, 0x78), QsciLexerCPP::SingleQuotedString);
-        l->setColor(QColor(0xB5, 0xCE, 0xA8), QsciLexerCPP::Number);
-        l->setColor(QColor(0xC5, 0x86, 0xC0), QsciLexerCPP::PreProcessor);
-        l->setColor(QColor(0x9C, 0xDC, 0xFE), QsciLexerCPP::Identifier);
-        l->setColor(QColor(0xD4, 0xD4, 0xD4), QsciLexerCPP::Operator);
+        l->setColor(QColor(0x5B, 0x8A, 0xD4), QsciLexerCPP::Keyword);
+        l->setColor(QColor(0x3A, 0x44, 0x58), QsciLexerCPP::Comment);
+        l->setColor(QColor(0x3A, 0x44, 0x58), QsciLexerCPP::CommentLine);
+        l->setColor(QColor(0x3A, 0x44, 0x58), QsciLexerCPP::CommentDoc);
+        l->setColor(QColor(0x7A, 0x9E, 0xC4), QsciLexerCPP::DoubleQuotedString);
+        l->setColor(QColor(0x7A, 0x9E, 0xC4), QsciLexerCPP::SingleQuotedString);
+        l->setColor(QColor(0x8A, 0xAC, 0xD4), QsciLexerCPP::Number);
+        l->setColor(QColor(0x4A, 0x6A, 0x9E), QsciLexerCPP::PreProcessor);
+        l->setColor(QColor(0xA8, 0xB8, 0xD0), QsciLexerCPP::Identifier);
+        l->setColor(QColor(0x78, 0x88, 0xA4), QsciLexerCPP::Operator);
         lexer = l;
     }
-    // ── Java / C# ──
     else if (extension == "java" || extension == "cs") {
         auto *l = new QsciLexerJava(this);
-        l->setColor(QColor(0x56, 0x9C, 0xD6), QsciLexerCPP::Keyword);
-        l->setColor(QColor(0x6A, 0x99, 0x55), QsciLexerCPP::Comment);
-        l->setColor(QColor(0x6A, 0x99, 0x55), QsciLexerCPP::CommentLine);
-        l->setColor(QColor(0xCE, 0x91, 0x78), QsciLexerCPP::DoubleQuotedString);
-        l->setColor(QColor(0xB5, 0xCE, 0xA8), QsciLexerCPP::Number);
+        l->setColor(QColor(0x5B, 0x8A, 0xD4), QsciLexerCPP::Keyword);
+        l->setColor(QColor(0x3A, 0x44, 0x58), QsciLexerCPP::Comment);
+        l->setColor(QColor(0x3A, 0x44, 0x58), QsciLexerCPP::CommentLine);
+        l->setColor(QColor(0x7A, 0x9E, 0xC4), QsciLexerCPP::DoubleQuotedString);
+        l->setColor(QColor(0x8A, 0xAC, 0xD4), QsciLexerCPP::Number);
         lexer = l;
     }
-    // ── JavaScript / TypeScript ──
     else if (extension == "js" || extension == "jsx" || extension == "ts"
              || extension == "tsx" || extension == "mjs" || extension == "cjs") {
         auto *l = new QsciLexerJavaScript(this);
-        l->setColor(QColor(0x56, 0x9C, 0xD6), QsciLexerCPP::Keyword);
-        l->setColor(QColor(0x6A, 0x99, 0x55), QsciLexerCPP::Comment);
-        l->setColor(QColor(0x6A, 0x99, 0x55), QsciLexerCPP::CommentLine);
-        l->setColor(QColor(0xCE, 0x91, 0x78), QsciLexerCPP::DoubleQuotedString);
-        l->setColor(QColor(0xCE, 0x91, 0x78), QsciLexerCPP::SingleQuotedString);
-        l->setColor(QColor(0xB5, 0xCE, 0xA8), QsciLexerCPP::Number);
+        l->setColor(QColor(0x5B, 0x8A, 0xD4), QsciLexerCPP::Keyword);
+        l->setColor(QColor(0x3A, 0x44, 0x58), QsciLexerCPP::Comment);
+        l->setColor(QColor(0x3A, 0x44, 0x58), QsciLexerCPP::CommentLine);
+        l->setColor(QColor(0x7A, 0x9E, 0xC4), QsciLexerCPP::DoubleQuotedString);
+        l->setColor(QColor(0x7A, 0x9E, 0xC4), QsciLexerCPP::SingleQuotedString);
+        l->setColor(QColor(0x8A, 0xAC, 0xD4), QsciLexerCPP::Number);
         lexer = l;
     }
-    // ── Python ──
     else if (extension == "py" || extension == "pyw") {
         auto *l = new QsciLexerPython(this);
-        l->setColor(QColor(0x56, 0x9C, 0xD6), QsciLexerPython::Keyword);
-        l->setColor(QColor(0x6A, 0x99, 0x55), QsciLexerPython::Comment);
-        l->setColor(QColor(0xCE, 0x91, 0x78), QsciLexerPython::DoubleQuotedString);
-        l->setColor(QColor(0xCE, 0x91, 0x78), QsciLexerPython::SingleQuotedString);
-        l->setColor(QColor(0xCE, 0x91, 0x78), QsciLexerPython::TripleDoubleQuotedString);
-        l->setColor(QColor(0xCE, 0x91, 0x78), QsciLexerPython::TripleSingleQuotedString);
-        l->setColor(QColor(0xB5, 0xCE, 0xA8), QsciLexerPython::Number);
-        l->setColor(QColor(0x4E, 0xC9, 0xB0), QsciLexerPython::Decorator);
-        l->setColor(QColor(0xDC, 0xDC, 0xAA), QsciLexerPython::FunctionMethodName);
+        l->setColor(QColor(0x5B, 0x8A, 0xD4), QsciLexerPython::Keyword);
+        l->setColor(QColor(0x3A, 0x44, 0x58), QsciLexerPython::Comment);
+        l->setColor(QColor(0x7A, 0x9E, 0xC4), QsciLexerPython::DoubleQuotedString);
+        l->setColor(QColor(0x7A, 0x9E, 0xC4), QsciLexerPython::SingleQuotedString);
+        l->setColor(QColor(0x7A, 0x9E, 0xC4), QsciLexerPython::TripleDoubleQuotedString);
+        l->setColor(QColor(0x7A, 0x9E, 0xC4), QsciLexerPython::TripleSingleQuotedString);
+        l->setColor(QColor(0x8A, 0xAC, 0xD4), QsciLexerPython::Number);
+        l->setColor(QColor(0x4A, 0x6A, 0x9E), QsciLexerPython::Decorator);
+        l->setColor(QColor(0x7A, 0xAA, 0xE8), QsciLexerPython::FunctionMethodName);
         lexer = l;
     }
-    // ── HTML ──
     else if (extension == "html" || extension == "htm") {
         lexer = new QsciLexerHTML(this);
     }
-    // ── CSS ──
     else if (extension == "css" || extension == "scss" || extension == "less") {
         lexer = new QsciLexerCSS(this);
     }
-    // ── JSON ──
     else if (extension == "json") {
         lexer = new QsciLexerJSON(this);
     }
-    // ── XML ──
     else if (extension == "xml" || extension == "svg" || extension == "xsl"
              || extension == "xsd" || extension == "ui") {
         lexer = new QsciLexerXML(this);
     }
-    // ── SQL ──
     else if (extension == "sql") {
         lexer = new QsciLexerSQL(this);
     }
-    // ── Shell / Bash ──
     else if (extension == "sh" || extension == "bash" || extension == "zsh") {
         lexer = new QsciLexerBash(this);
     }
-    // ── Markdown ──
     else if (extension == "md" || extension == "markdown") {
         lexer = new QsciLexerMarkdown(this);
     }
-    // ── Ruby ──
     else if (extension == "rb" || extension == "rake" || extension == "gemspec") {
         lexer = new QsciLexerRuby(this);
     }
-    // ── Lua ──
     else if (extension == "lua") {
         lexer = new QsciLexerLua(this);
     }
-    // ── Unknown — plain text, no lexer ──
     else {
         editor->setLexer(nullptr);
-        editor->setPaper(QColor(0x0F, 0x0F, 0x0F));
-        editor->setColor(QColor(0xE0, 0xE0, 0xE0));
+        editor->setPaper(QColor(0x0A, 0x0C, 0x12));
+        editor->setColor(QColor(0xA8, 0xB8, 0xD0));
         return;
     }
 
