@@ -15,6 +15,5 @@ private slots:
     void onConnect();
 
 private:
-    QLineEdit *m_urlInput;
     QLineEdit *m_nameInput;
 };
