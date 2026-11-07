@@ -2,8 +2,8 @@
 #include <QPalette>
 #include <QColor>
 #include <QFont>
-#include "ConnectDialog.h"
-#include "MainWindow.h"
+#include "connectdialog.h"
+#include "mainwindow.h"
 
 
 int main(int argc, char *argv[])

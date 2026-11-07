@@ -1,4 +1,4 @@
-#include "ConnectDialog.h"
+#include "connectdialog.h"
 
 #include <QVBoxLayout>
 #include <QLabel>

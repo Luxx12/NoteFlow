@@ -1,4 +1,4 @@
-#include "MessageBubble.h"
+#include "messagebubble.h"
 
 #include <QHBoxLayout>
 #include <QVBoxLayout>

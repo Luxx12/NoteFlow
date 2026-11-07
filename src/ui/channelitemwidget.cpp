@@ -1,4 +1,4 @@
-#include "ChannelItemWidget.h"
+#include "channelitemwidget.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>

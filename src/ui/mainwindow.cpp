@@ -1,7 +1,7 @@
 #include "mainwindow.h"
-#include "WsClient.h"
-#include "ChatView.h"
-#include "ChannelItemWidget.h"
+#include "wsclient.h"
+#include "chatview.h"
+#include "channelitemwidget.h"
 #include "fileEditor.h"
 #include "fileitemwidget.h"
 

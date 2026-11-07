@@ -1,5 +1,5 @@
-#include "ChatView.h"
-#include "MessageBubble.h"
+#include "chatview.h"
+#include "messagebubble.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>

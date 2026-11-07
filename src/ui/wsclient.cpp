@@ -1,4 +1,4 @@
-#include "WsClient.h"
+#include "wsclient.h"
 
 #include <QJsonObject>
 #include <QJsonDocument>
